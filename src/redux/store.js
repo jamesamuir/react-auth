@@ -5,7 +5,8 @@ import { promiseMiddleware, localStorageMiddleware } from '../middleware';
 import reducer from './reducers/reducer';
 
 import { routerMiddleware } from 'react-router-redux'
-import createHistory from 'history/createBrowserHistory';
+import { createBrowserHistory as createHistory } from 'history'
+
 
 export const history = createHistory();
 

@@ -1,8 +1,9 @@
 import ArticleList from '../Article/ArticleList';
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import { Link } from 'react-router-dom';
 import agent from '../../api/agent';
 import { connect } from 'react-redux';
+import {Tabs, Tab} from 'react-bootstrap';
 import {
   FOLLOW_USER,
   UNFOLLOW_USER,
@@ -55,11 +56,140 @@ const FollowUserButton = props => {
   );
 };
 
-const mapStateToProps = state => ({
-  ...state.articleList,
-  currentUser: state.common.currentUser,
-  profile: state.profile
-});
+
+
+function Profile({onLoad, onUnload, onFollow, onUnfollow, defaultProfile, defaultCurrentUser, ...props}){
+
+  const [profile, setProfile] = useState({...defaultProfile});
+  const [currentUser, setCurrentUser] = useState({...defaultCurrentUser});
+  const [isUser, setIsUser] = useState(false);
+  const [activeTab, setActiveTab] = useState(1);
+
+  // Set Profile and CurrentUser state
+  useEffect(() => {
+    if (defaultProfile){
+      setProfile(defaultProfile);
+    }else{
+      setProfile(null);
+    }
+
+    if (defaultCurrentUser){
+      setCurrentUser(defaultCurrentUser);
+    }else{
+      setCurrentUser(null);
+    }
+
+    if(defaultProfile && defaultCurrentUser &&
+        defaultProfile.username === defaultCurrentUser.username) setIsUser(true);
+
+    },[defaultProfile, defaultCurrentUser]);
+
+  // Set inital load state
+  useEffect(() => {
+    onLoad(Promise.all([
+      agent.Profile.get(props.match.params.username),
+      agent.Articles.byAuthor(props.match.params.username)
+    ]));
+
+    return () => {
+      onUnload();
+    }
+
+  }, []);
+
+  function handleTabSelect(activeTab){
+    setActiveTab(activeTab);
+  }
+
+
+
+
+  return (
+    <div className="profile-page">
+
+      <div className="user-info">
+        <div className="container">
+          <div className="row">
+            <div className="col-xs-12 col-md-10 offset-md-1">
+
+              <img src={profile.image} className="user-img" alt={profile.username} />
+              <h4>{profile.username}</h4>
+              <p>{profile.bio}</p>
+
+              <EditProfileSettings isUser={isUser} />
+              <FollowUserButton
+                isUser={isUser}
+                user={profile}
+                follow={onFollow}
+                unfollow={onUnfollow}
+                />
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="container">
+        <div className="row">
+          <div className="col-xs-12 col-md-10 offset-md-1">
+
+
+            <Tabs  onSelect={handleTabSelect} className="articles-toggle">
+              <Tab eventKey={1} title="Home">
+                <div>
+                <ArticleList
+                    pager={props.pager}
+                    articles={props.articles}
+                    articlesCount={props.articlesCount}
+                    state={props.currentPage} />
+                </div>
+              </Tab>
+              <Tab eventKey={2} title="Test">
+                <h1>Not Trash</h1>
+              </Tab>
+
+            </Tabs>
+
+
+
+            {/*<div className="articles-toggle">
+              <ul className="nav nav-pills outline-active">
+                <li className="nav-item">
+                  <Link
+                      className="nav-link active"
+                      to={`/@${this.props.profile.username}`}>
+                    My Articles
+                  </Link>
+                </li>
+
+                <li className="nav-item">
+                  <Link
+                      className="nav-link"
+                      to={`/@${this.props.profile.username}/favorites`}>
+                    Favorited Articles
+                  </Link>
+                </li>
+              </ul>
+            </div>*/}
+
+
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  );
+
+}
+
+function mapStateToProps (state) {
+  return {
+    ...state.articleList,
+    defaultCurrentUser: state.common.currentUser,
+    defaultProfile: state.profile
+  }
+}
 
 const mapDispatchToProps = dispatch => ({
   onFollow: username => dispatch({
@@ -74,97 +204,6 @@ const mapDispatchToProps = dispatch => ({
   onUnload: () => dispatch({ type: PROFILE_PAGE_UNLOADED })
 });
 
-class Profile extends React.Component {
-  componentWillMount() {
-    this.props.onLoad(Promise.all([
-      agent.Profile.get(this.props.match.params.username),
-      agent.Articles.byAuthor(this.props.match.params.username)
-    ]));
-  }
-
-  componentWillUnmount() {
-    this.props.onUnload();
-  }
-
-  renderTabs() {
-    return (
-      <ul className="nav nav-pills outline-active">
-        <li className="nav-item">
-          <Link
-            className="nav-link active"
-            to={`/@${this.props.profile.username}`}>
-            My Articles
-          </Link>
-        </li>
-
-        <li className="nav-item">
-          <Link
-            className="nav-link"
-            to={`/@${this.props.profile.username}/favorites`}>
-            Favorited Articles
-          </Link>
-        </li>
-      </ul>
-    );
-  }
-
-  render() {
-    const profile = this.props.profile;
-    if (!profile) {
-      return null;
-    }
-
-    const isUser = this.props.currentUser &&
-      this.props.profile.username === this.props.currentUser.username;
-
-    return (
-      <div className="profile-page">
-
-        <div className="user-info">
-          <div className="container">
-            <div className="row">
-              <div className="col-xs-12 col-md-10 offset-md-1">
-
-                <img src={profile.image} className="user-img" alt={profile.username} />
-                <h4>{profile.username}</h4>
-                <p>{profile.bio}</p>
-
-                <EditProfileSettings isUser={isUser} />
-                <FollowUserButton
-                  isUser={isUser}
-                  user={profile}
-                  follow={this.props.onFollow}
-                  unfollow={this.props.onUnfollow}
-                  />
-
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="container">
-          <div className="row">
-
-            <div className="col-xs-12 col-md-10 offset-md-1">
-
-              <div className="articles-toggle">
-                {this.renderTabs()}
-              </div>
-
-              <ArticleList
-                pager={this.props.pager}
-                articles={this.props.articles}
-                articlesCount={this.props.articlesCount}
-                state={this.props.currentPage} />
-            </div>
-
-          </div>
-        </div>
-
-      </div>
-    );
-  }
-}
 
 export default connect(mapStateToProps, mapDispatchToProps)(Profile);
 export { Profile, mapStateToProps };
